@@ -1,0 +1,67 @@
+<project name="librarian" default="dist" basedir=".">
+
+  <property name="src.dir" value="src"/>
+  <property name="test.dir" value="tests"/>
+  <property name="build.dir" value="build/ant"/>
+  <property name="classes.dir" value="${build.dir}/classes"/>
+  <property name="test-classes.dir" value="${build.dir}/test-classes"/>
+  <property name="dist.dir" value="${build.dir}/dist"/>
+  <property name="jar.name" value="librarian.jar"/>
+
+  <property name="main.class" value="dk.cintix.librarian.endpoint.Main"/>
+
+  <target name="clean">
+    <delete dir="${build.dir}"/>
+  </target>
+
+  <target name="compile">
+    <mkdir dir="${classes.dir}"/>
+    <javac srcdir="${src.dir}"
+           destdir="${classes.dir}"
+           release="17"
+           includeantruntime="false"
+           debug="true"/>
+  </target>
+
+  <target name="compile-tests" depends="compile">
+    <mkdir dir="${test-classes.dir}"/>
+    <javac srcdir="${test.dir}"
+           destdir="${test-classes.dir}"
+           release="17"
+           classpath="${classes.dir}"
+           includeantruntime="false"
+           debug="true"/>
+  </target>
+
+  <target name="jar" depends="compile">
+    <mkdir dir="${dist.dir}"/>
+    <jar destfile="${dist.dir}/${jar.name}">
+      <fileset dir="${classes.dir}"/>
+      <manifest>
+        <attribute name="Main-Class" value="${main.class}"/>
+      </manifest>
+    </jar>
+  </target>
+
+  <target name="dist" depends="clean, jar">
+    <echo message="JAR built: ${dist.dir}/${jar.name}"/>
+  </target>
+
+  <target name="test" depends="compile-tests">
+    <java classname="dk.cintix.librarian.infrastructure.json.JsonParserTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.infrastructure.json.JsonWriterTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.infrastructure.maven.MavenMetadataParserTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.resolution.services.domain.rules.VersionSpecTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.config.services.domain.models.DependencySpecTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.config.services.domain.models.ConfigurationTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.lockfile.services.domain.models.LockFileTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.resolution.services.domain.rules.ResolvedDependencyTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.resolution.services.domain.rules.VersionResolverTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.artifact.services.domain.rules.LibDirectoryManagerTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.config.services.persistence.ConfigReaderTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.lockfile.services.persistence.LockFileWriterTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.integration.EndToEndTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <echo message="All test suites passed."/>
+  </target>
+
+</project>

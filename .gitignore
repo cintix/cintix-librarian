@@ -1,0 +1,24 @@
+build/
+*.class
+*.jar
+*.war
+*.zip
+*.tar.gz
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Misc
+*.log
