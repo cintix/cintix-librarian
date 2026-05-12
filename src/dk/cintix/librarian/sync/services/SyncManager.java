@@ -7,6 +7,8 @@ import dk.cintix.librarian.config.ConfigContract;
 import dk.cintix.librarian.config.ConfigContract.ConfigData;
 import dk.cintix.librarian.config.ConfigContract.DependencySpec;
 import dk.cintix.librarian.config.ConfigContract.RepositoryDef;
+import dk.cintix.librarian.git.GitContract;
+import dk.cintix.librarian.git.GitContract.GitResolved;
 import dk.cintix.librarian.lockfile.LockFileContract;
 import dk.cintix.librarian.lockfile.LockFileContract.LockFileData;
 import dk.cintix.librarian.resolution.ResolutionContract;
@@ -27,13 +29,16 @@ public final class SyncManager implements LibrarianCore {
     private final ResolutionContract resolution;
     private final ArtifactContract artifact;
     private final LockFileContract lockFile;
+    private final GitContract git;
 
     public SyncManager(ConfigContract config, ResolutionContract resolution,
-                        ArtifactContract artifact, LockFileContract lockFile) {
+                        ArtifactContract artifact, LockFileContract lockFile,
+                        GitContract git) {
         this.config = config;
         this.resolution = resolution;
         this.artifact = artifact;
         this.lockFile = lockFile;
+        this.git = git;
     }
 
     @Override
@@ -51,16 +56,12 @@ public final class SyncManager implements LibrarianCore {
 
         for (DependencySpec dep : deps) {
             try {
-                RepositoryDef repo = resolveRepo(dep, defaultRepo, repos);
-                VersionSpec spec = VersionSpec.parse(dep.version());
-                ResolvedDependency resolvedDep = resolution.resolve(spec, dep, repo);
-
-                DownloadedArtifact downloaded = artifact.download(dep, resolvedDep.resolvedVersion(), repo, libDir);
-
-                resolved.add(new ResolvedDependency(
-                        dep.groupId(), dep.artifactId(), dep.coordinate(),
-                        dep.version(), resolvedDep.resolvedVersion(),
-                        repoName(dep, defaultRepo), downloaded.checksum()));
+                if (dep.isGit()) {
+                    resolved.add(resolveAndDownloadGit(dep, libDir));
+                } else {
+                    RepositoryDef repo = resolveRepo(dep, defaultRepo, repos);
+                    resolved.add(resolveAndDownloadMaven(dep, repo, libDir));
+                }
             } catch (Exception e) {
                 errors.add(dep.coordinate() + ": " + e.getMessage());
             }
@@ -81,6 +82,27 @@ public final class SyncManager implements LibrarianCore {
                 toLockFileInfo(lockFileData));
     }
 
+    private ResolvedDependency resolveAndDownloadMaven(DependencySpec dep, RepositoryDef repo, Path libDir)
+            throws IOException {
+        VersionSpec spec = VersionSpec.parse(dep.version());
+        ResolvedDependency resolvedDep = resolution.resolve(spec, dep, repo);
+        DownloadedArtifact downloaded = artifact.download(dep, resolvedDep.resolvedVersion(), repo, libDir);
+        return new ResolvedDependency(
+                dep.groupId(), dep.artifactId(), dep.coordinate(),
+                dep.version(), resolvedDep.resolvedVersion(),
+                repoNameInResult(dep), downloaded.checksum());
+    }
+
+    private ResolvedDependency resolveAndDownloadGit(DependencySpec dep, Path libDir) throws IOException {
+        GitResolved gitResolved = git.resolve(dep.coordinate(), dep.version());
+        var gitAsset = git.download(gitResolved, libDir);
+        String repoName = extractRepoName(dep.coordinate());
+        return new ResolvedDependency(
+                dep.coordinate(), repoName, dep.coordinate(),
+                dep.version(), gitResolved.version(),
+                "git:" + dep.coordinate(), gitAsset.checksum());
+    }
+
     @Override
     public LockFileInfo resolve(Path projectDir) throws IOException {
         ConfigData configData = config.read(projectDir);
@@ -93,12 +115,21 @@ public final class SyncManager implements LibrarianCore {
 
         for (DependencySpec dep : deps) {
             try {
-                RepositoryDef repo = resolveRepo(dep, defaultRepo, repos);
-                VersionSpec spec = VersionSpec.parse(dep.version());
-                ResolvedDependency r = resolution.resolve(spec, dep, repo);
-                resolved.add(new ResolvedDependency(
-                        dep.groupId(), dep.artifactId(), dep.coordinate(),
-                        dep.version(), r.resolvedVersion(), repoName(dep, defaultRepo), null));
+                if (dep.isGit()) {
+                    GitResolved gitResolved = git.resolve(dep.coordinate(), dep.version());
+                    String repoName = extractRepoName(dep.coordinate());
+                    resolved.add(new ResolvedDependency(
+                            dep.coordinate(), repoName, dep.coordinate(),
+                            dep.version(), gitResolved.version(),
+                            "git:" + dep.coordinate(), null));
+                } else {
+                    RepositoryDef repo = resolveRepo(dep, defaultRepo, repos);
+                    VersionSpec spec = VersionSpec.parse(dep.version());
+                    ResolvedDependency r = resolution.resolve(spec, dep, repo);
+                    resolved.add(new ResolvedDependency(
+                            dep.groupId(), dep.artifactId(), dep.coordinate(),
+                            dep.version(), r.resolvedVersion(), repoNameInResult(dep), null));
+                }
             } catch (Exception e) {
                 errors.add(dep.coordinate() + ": " + e.getMessage());
             }
@@ -136,7 +167,6 @@ public final class SyncManager implements LibrarianCore {
 
             Map<String, RepositoryDef> repos = configData.repositories();
             for (Map.Entry<String, RepositoryDef> entry : repos.entrySet()) {
-                // Use the resolution infrastructure to check reachability
                 try {
                     var client = new dk.cintix.librarian.resolution.services.persistence.MavenMetadataClient();
                     if (client.checkReachable(entry.getValue())) {
@@ -156,9 +186,14 @@ public final class SyncManager implements LibrarianCore {
                 Path libDir = projectDir.resolve(configData.libDir());
                 Set<String> existingJars = artifact.existingJars(libDir);
                 for (var entry : lockFileData.dependencies().entrySet()) {
-                    String artifactId = entry.getKey().contains(":")
-                            ? entry.getKey().substring(entry.getKey().indexOf(":") + 1)
-                            : entry.getKey();
+                    String coordinate = entry.getKey();
+                    String artifactId;
+                    if (coordinate.contains(":")) {
+                        artifactId = coordinate.substring(coordinate.indexOf(":") + 1);
+                    } else {
+                        int slash = coordinate.lastIndexOf('/');
+                        artifactId = slash >= 0 ? coordinate.substring(slash + 1) : coordinate;
+                    }
                     String fileName = artifactId + "-" + entry.getValue().resolved() + ".jar";
                     if (!existingJars.contains(fileName)) {
                         missingJars.add(fileName);
@@ -183,8 +218,18 @@ public final class SyncManager implements LibrarianCore {
         return repo;
     }
 
-    private String repoName(DependencySpec dep, String defaultRepo) {
-        return dep.repository() != null ? dep.repository() : defaultRepo;
+    private String repoNameInResult(DependencySpec dep) {
+        return dep.repository() != null ? dep.repository() : "maven-central";
+    }
+
+    private String extractRepoName(String repoUrl) {
+        String path = repoUrl;
+        if (path.startsWith("https://")) path = path.substring(8);
+        if (path.startsWith("http://")) path = path.substring(7);
+        if (path.endsWith(".git")) path = path.substring(0, path.length() - 4);
+        if (path.endsWith("/")) path = path.substring(0, path.length() - 1);
+        int slash = path.lastIndexOf('/');
+        return slash >= 0 ? path.substring(slash + 1) : path;
     }
 
     private ResolvedDepInfo toResolvedDepInfo(ResolvedDependency dep) {

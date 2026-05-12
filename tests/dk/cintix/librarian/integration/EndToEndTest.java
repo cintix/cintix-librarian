@@ -8,6 +8,7 @@ import dk.cintix.librarian.LibrarianCore.ResolvedDepInfo;
 import dk.cintix.librarian.LibrarianCore.SyncResult;
 import dk.cintix.librarian.artifact.services.ArtifactService;
 import dk.cintix.librarian.config.services.ConfigService;
+import dk.cintix.librarian.git.services.GitService;
 import dk.cintix.librarian.lockfile.services.LockFileService;
 import dk.cintix.librarian.resolution.services.ResolutionService;
 import dk.cintix.librarian.sync.services.SyncManager;
@@ -75,7 +76,7 @@ public final class EndToEndTest {
 
     static LibrarianCore createCore() {
         return new SyncManager(new ConfigService(), new ResolutionService(),
-                new ArtifactService(), new LockFileService());
+                new ArtifactService(), new LockFileService(), new GitService());
     }
 
     static void testResolveToLockFile() throws IOException {

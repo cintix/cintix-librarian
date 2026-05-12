@@ -57,6 +57,9 @@ run_test dk.cintix.librarian.artifact.services.domain.rules.LibDirectoryManagerT
 run_test dk.cintix.librarian.lockfile.services.domain.models.LockFileTest "LockFile"
 run_test dk.cintix.librarian.lockfile.services.persistence.LockFileWriterTest "LockFileWriter"
 
+# Git module tests
+run_test dk.cintix.librarian.git.services.domain.rules.GitVersionResolverTest "GitVersionResolver"
+
 # Integration tests
 run_test dk.cintix.librarian.integration.EndToEndTest "EndToEnd"
 

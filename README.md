@@ -23,14 +23,13 @@ librarian.json → resolve → download → lib/ → librarian.lock.json
 ### Build
 
 ```bash
-bash build.sh        # Shell build
-ant                  # Ant build
+bash build.sh        # Shell build → build/dist/librarian
+ant                  # Ant build → build/ant/dist/librarian.jar
 ```
 
 ### Usage
 
 ```bash
-# In your project directory:
 librarian sync       # Resolve, download, clean lib/, write lock
 librarian resolve    # Resolve versions only (no download)
 librarian update     # Re-resolve all, re-download, update lock
@@ -38,17 +37,154 @@ librarian doctor     # Check configuration health
 librarian help       # Show help
 ```
 
-### Project Configuration
+---
+
+## Tutorial
+
+### Step 1 — Create librarian.json
 
 Create `librarian.json` in your project root:
 
 ```json
 {
   "libDir": "lib",
-  "defaultRepository": "maven-central",
+  "dependencies": {
+    "org.slf4j:slf4j-api": "2.0.16"
+  }
+}
+```
+
+Minimal config. `libDir` defaults to `"lib"`, `defaultRepository` defaults to `"maven-central"`.
+
+### Step 2 — Sync
+
+```bash
+$ librarian sync
+sync: /home/me/my-project
+  resolved org.slf4j:slf4j-api -> 2.0.16
+Lock file written: /home/me/my-project/librarian.lock.json
+```
+
+Your project now has:
+
+```text
+my-project/
+  lib/
+    slf4j-api-2.0.16.jar    ← downloaded
+  librarian.json
+  librarian.lock.json        ← generated lock file
+```
+
+### Step 3 — Add dependencies
+
+```json
+{
+  "libDir": "lib",
+  "dependencies": {
+    "org.slf4j:slf4j-api": "2.0.16",
+    "com.google.code.gson:gson": {
+      "version": "^2.11",
+      "transitive": false
+    },
+    "com.fasterxml.jackson.core:jackson-databind": {
+      "version": "^2.17",
+      "transitive": true,
+      "repository": "maven-central"
+    }
+  }
+}
+```
+
+Detail form lets you control `transitive`, `repository`, and `type` per dependency.
+
+### Step 4 — Update
+
+```bash
+$ librarian update
+update: /home/me/my-project
+Updated 3 dependencies
+```
+
+Re-resolves all version constraints, re-downloads, regenerates lock file.
+
+### Step 5 — Check health
+
+```bash
+$ librarian doctor
+doctor: /home/me/my-project
+Config valid: true
+Dependencies: 3
+Repositories reachable: [maven-central]
+Lock file present: true
+  Entries: 3
+Doctor check complete.
+```
+
+### Using version streams
+
+```json
+{
+  "dependencies": {
+    "org.slf4j:slf4j-api": "2.*",
+    "com.google.code.gson:gson": "^2.11",
+    "commons-io:commons-io": "latest"
+  }
+}
+```
+
+| Syntax | Meaning | Resolves to |
+|--------|---------|-------------|
+| `2.0.16` | Exact version | `2.0.16` |
+| `2.*` | Major stream | Highest `2.x.x` |
+| `2.1.*` | Patch stream | Highest `2.1.x` |
+| `^2.11` | Compatible range | Highest `>= 2.11.0, < 3.0.0` |
+| `latest` | Latest stable | Highest non-prerelease |
+
+### Using Git dependencies
+
+Fetch pre-built JARs from GitHub/GitLab Releases:
+
+```json
+{
+  "dependencies": {
+    "github.com/my-org/my-library": {
+      "type": "git",
+      "version": "v2.1.0"
+    }
+  }
+}
+```
+
+```bash
+$ librarian sync
+sync: /home/me/my-project
+  resolved github.com/my-org/my-library -> 2.1.0
+Lock file written: /home/me/my-project/librarian.lock.json
+```
+
+Git version specs:
+
+| Spec | Meaning |
+|------|---------|
+| `"v2.1.0"` | Exact release tag |
+| `"latest"` | Latest release |
+| `"^v2.0"` | Highest tag `>= 2.0.0, < 3.0.0` |
+
+Only `.jar` assets attached to releases are downloaded. No cloning, no build tools required.
+
+### Custom repositories
+
+```json
+{
+  "libDir": "lib",
+  "defaultRepository": "company-releases",
   "repositories": {
-    "default": "maven-central",
+    "default": "company-releases",
     "items": {
+      "company-releases": {
+        "type": "maven",
+        "url": "https://nexus.company.local/repository/releases"
+      },
       "maven-central": {
         "type": "maven",
         "url": "https://repo1.maven.org/maven2"
@@ -56,103 +192,92 @@ Create `librarian.json` in your project root:
     }
   },
   "dependencies": {
-    "org.slf4j:slf4j-api": "2.0.16",
+    "com.company:internal-lib": {
+      "version": "^3.0",
+      "repository": "company-releases"
+    },
+    "org.slf4j:slf4j-api": "2.0.16"
+  }
+}
+```
+
+### Lock file
+
+`librarian.lock.json` captures the exact resolved state:
+
+```json
+{
+  "version": "1",
+  "dependencies": {
+    "org.slf4j:slf4j-api": {
+      "requested": "2.*",
+      "resolved": "2.0.16",
+      "repository": "maven-central",
+      "checksum": "0172931663a09a1fa515567af5fbef00897d3c04"
+    },
     "com.google.code.gson:gson": {
-      "version": "^2.11",
-      "transitive": false
+      "requested": "^2.11",
+      "resolved": "2.14.0",
+      "repository": "maven-central",
+      "checksum": "efc0e34ede4e3204eaefb84a00e55e8c86634382"
     }
   }
 }
 ```
 
-After running `librarian sync`, your project looks like:
+Commit this file. It makes builds reproducible — `librarian sync` respects existing lock entries.
 
-```text
-project/
-  src/
-  lib/
-    slf4j-api-2.0.16.jar
-    gson-2.14.0.jar
-  librarian.json
-  librarian.lock.json
+### Global configuration
+
+Optional `~/.librarian/config.json` for personal defaults:
+
+```json
+{
+  "libDir": "external/lib",
+  "defaultRepository": "company-releases"
+}
 ```
 
-## Version Rules
+### Resolve-only mode
 
-| Syntax | Meaning | Example |
-|--------|---------|---------|
-| `2.1.5` | Exact version | `"org.slf4j:slf4j-api": "2.0.16"` |
-| `2.1.*` | Patch stream | Highest patch in 2.1.x |
-| `2.*` | Major stream | Highest minor.patch in 2.x |
-| `^2.1` | Compatible range | >= 2.1.0 and < 3.0.0 |
-| `latest` | Latest stable | Highest non-prerelease |
+```bash
+$ librarian resolve
+resolve: /home/me/my-project
+Resolved 3 dependencies
+```
 
-## Key Defaults
+Resolves versions and writes the lock file **without** downloading JARs. Useful for CI pipelines that verify resolution succeeds before syncing.
 
-- **transitive**: `false` — only direct dependencies are fetched
-- **cache**: disabled — no hidden global state
-- **libDir**: `"lib"` — relative to project root
+---
 
 ## Architecture
 
-Single project following modular-hybrid architecture with five modules:
+Single project following modular-hybrid architecture with six modules:
 
 ```
 src/dk/cintix/librarian/
   LibrarianCore.java         # Top-level public API + DTOs
 
   config/                    # Configuration parsing
-    ConfigContract.java      # Public: DependencySpec, RepositoryDef, ConfigData
-    services/ConfigService.java, persistence/ConfigReader.java
-
-  resolution/                # Version resolution
-    ResolutionContract.java  # Public: VersionSpec, ResolvedDependency
-    services/ResolutionService.java, MavenMetadataClient, MavenMetadataParser
-
+  resolution/                # Version resolution (Maven)
   artifact/                  # JAR download + lib/ management
-    ArtifactContract.java    # Public: DownloadedArtifact
-    services/ArtifactService.java, ArtifactDownloader, LibDirectoryManager
-
   lockfile/                  # Lock file persistence
-    LockFileContract.java    # Public: LockEntry, LockFileData
-    services/LockFileService.java, persistence/LockFileWriter.java
-
-  sync/                      # Orchestration
-    services/SyncManager.java  # Implements LibrarianCore, depends on all contracts
-
-  endpoint/                  # CLI
-    Main.java                # Composition root — wires all modules
-    commands/                # SyncCommand, ResolveCommand, UpdateCommand, DoctorCommand
-
-  infrastructure/            # Shared technical code (zero business logic)
-    json/                    # Custom JSON parser/writer
+  git/                       # Git release dependencies
+  sync/                      # Orchestration (implements LibrarianCore)
+  endpoint/                  # CLI (Main.java + commands)
+  infrastructure/json/       # Custom JSON parser/writer (zero business logic)
 ```
 
 - `endpoint` depends only on `LibrarianCore` — never on module internals
-- Modules communicate only through contracts — no cross-module imports of internals
-- Infrastructure is purely technical, depends on nothing except JDK
+- Modules communicate through contracts — no cross-module imports of internals
+- Infrastructure depends on nothing except JDK
 - Composition root (`Main.java`) wires all modules manually — no DI framework
-
-## Global Configuration
-
-Optional `~/.librarian/config.json` for user-wide defaults:
-
-```json
-{
-  "libDir": "external/lib",
-  "defaultRepository": "company-repo"
-}
-```
 
 ## Repository Support
 
-Maven-compatible repositories:
-
-- Maven Central
-- Nexus
-- Artifactory
-- GitHub Packages
+- Maven Central, Nexus, Artifactory, GitHub Packages
 - Custom/private Maven repositories
+- GitHub Releases, GitLab Releases (pre-built JARs)
 
 ## Design Constraints
 

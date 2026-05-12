@@ -60,6 +60,7 @@
     <java classname="dk.cintix.librarian.artifact.services.domain.rules.LibDirectoryManagerTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
     <java classname="dk.cintix.librarian.config.services.persistence.ConfigReaderTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
     <java classname="dk.cintix.librarian.lockfile.services.persistence.LockFileWriterTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
+    <java classname="dk.cintix.librarian.git.services.domain.rules.GitVersionResolverTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
     <java classname="dk.cintix.librarian.integration.EndToEndTest" fork="true" failonerror="true"><jvmarg value="-ea"/><classpath><pathelement path="${classes.dir}"/><pathelement path="${test-classes.dir}"/></classpath></java>
     <echo message="All test suites passed."/>
   </target>

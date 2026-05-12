@@ -7,6 +7,7 @@ import dk.cintix.librarian.endpoint.commands.DoctorCommand;
 import dk.cintix.librarian.endpoint.commands.ResolveCommand;
 import dk.cintix.librarian.endpoint.commands.SyncCommand;
 import dk.cintix.librarian.endpoint.commands.UpdateCommand;
+import dk.cintix.librarian.git.services.GitService;
 import dk.cintix.librarian.lockfile.services.LockFileService;
 import dk.cintix.librarian.resolution.services.ResolutionService;
 import dk.cintix.librarian.sync.services.SyncManager;
@@ -29,8 +30,9 @@ public final class Main {
         ResolutionService resolutionService = new ResolutionService();
         ArtifactService artifactService = new ArtifactService();
         LockFileService lockFileService = new LockFileService();
+        GitService gitService = new GitService();
         LibrarianCore core = new SyncManager(configService, resolutionService,
-                artifactService, lockFileService);
+                artifactService, lockFileService, gitService);
 
         int exitCode;
         try {

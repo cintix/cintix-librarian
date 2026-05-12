@@ -8,7 +8,19 @@ import java.util.Map;
 public interface ConfigContract {
 
     record DependencySpec(String groupId, String artifactId, String coordinate,
-                           String version, boolean transitive, String repository) {}
+                           String version, boolean transitive, String repository,
+                           String type) {
+        public DependencySpec {
+            if (type == null) type = "maven";
+        }
+
+        public DependencySpec(String groupId, String artifactId, String coordinate,
+                               String version, boolean transitive, String repository) {
+            this(groupId, artifactId, coordinate, version, transitive, repository, "maven");
+        }
+
+        public boolean isGit() { return "git".equals(type); }
+    }
 
     record RepositoryDef(String type, String url) {}
 

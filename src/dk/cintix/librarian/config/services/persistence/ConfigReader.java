@@ -113,6 +113,7 @@ public final class ConfigReader {
             String versionStr = null;
             boolean transitive = false;
             String repository = null;
+            String type = "maven";
             if (value instanceof String v) {
                 versionStr = v;
             } else if (value instanceof Map<?, ?> detail) {
@@ -121,13 +122,14 @@ public final class ConfigReader {
                 versionStr = (String) detailMap.get("version");
                 if (detailMap.containsKey("transitive")) transitive = (Boolean) detailMap.get("transitive");
                 if (detailMap.containsKey("repository")) repository = (String) detailMap.get("repository");
+                if (detailMap.containsKey("type")) type = (String) detailMap.get("type");
             }
             if (versionStr == null)
                 throw new IllegalArgumentException("No version specified for dependency: " + coordinate);
             String[] parts = coordinate.split(":");
             String groupId = parts.length > 0 ? parts[0] : "";
             String artifactId = parts.length > 1 ? parts[1] : "";
-            result.add(new DependencySpec(groupId, artifactId, coordinate, versionStr, transitive, repository));
+            result.add(new DependencySpec(groupId, artifactId, coordinate, versionStr, transitive, repository, type));
         }
         return result;
     }

@@ -2,7 +2,7 @@
 
 ## Project Identity
 
-**librarian** — A deterministic Java library synchronizer. One responsibility: read `librarian.json`, resolve Maven artifacts, download JARs to `lib/`, generate `librarian.lock.json`.
+**librarian** — A deterministic Java library synchronizer. One responsibility: read `librarian.json`, resolve Maven + Git dependencies, download JARs to `lib/`, generate `librarian.lock.json`.
 
 Package: `dk.cintix.librarian`
 Project root: `/home/cintix/projects/cintix-librarian`
@@ -90,12 +90,24 @@ src/dk/cintix/librarian/lockfile/
       LockFileWriter.java                         # Generate/write/read librarian.lock.json
 ```
 
+### Module: git (`dk.cintix.librarian.git`)
+
+```
+src/dk/cintix/librarian/git/
+  GitContract.java                                # Public contract + GitResolved, GitAsset DTOs
+  services/
+    GitService.java                               # Facade implementing GitContract
+    domain/rules/
+      GitVersionResolver.java                     # GitHub/GitLab Releases API → tag resolution
+      GitAssetDownloader.java                     # Download release .jar asset + SHA-1 checksum
+```
+
 ### Module: sync (`dk.cintix.librarian.sync`)
 
 ```
 src/dk/cintix/librarian/sync/
   services/
-    SyncManager.java                              # Orchestrator — implements LibrarianCore, depends on all module contracts
+    SyncManager.java                              # Orchestrator — implements LibrarianCore, depends on all 5 module contracts
 ```
 
 ### Endpoint
@@ -135,6 +147,7 @@ tests/dk/cintix/librarian/
   resolution/             VersionSpecTest.java, ResolvedDependencyTest.java, VersionResolverTest.java
   artifact/               LibDirectoryManagerTest.java
   lockfile/               LockFileTest.java, LockFileWriterTest.java
+  git/                    GitVersionResolverTest.java
   integration/            EndToEndTest.java
 ```
 
